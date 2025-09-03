@@ -1,0 +1,1 @@
+{"version":3,"file":"warehouse.d.ts","sourceRoot":"","sources":["../../src/entities/warehouse.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,SAAS,EAAE,MAAM,gBAAgB,CAAA;AAE1C,qBACa,SAAS;IAEpB,EAAE,EAAG,MAAM,CAAC;IAGZ,IAAI,EAAG,MAAM,CAAC;IAGd,QAAQ,EAAG,MAAM,CAAC;IAGlB,WAAW,EAAG,SAAS,EAAE,CAAC;CAC3B"}

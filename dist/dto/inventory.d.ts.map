@@ -1,0 +1,1 @@
+{"version":3,"file":"inventory.d.ts","sourceRoot":"","sources":["../../src/dto/inventory.ts"],"names":[],"mappings":"AAEA,qBAAa,YAAY;IAEvB,SAAS,EAAG,MAAM,CAAC;IAEnB,WAAW,EAAG,MAAM,CAAC;IAGrB,KAAK,EAAG,MAAM,CAAC;IAGf,MAAM,EAAG,MAAM,CAAC;CACjB;AAED,qBAAa,eAAe;IAE1B,SAAS,EAAG,MAAM,CAAC;IAGnB,eAAe,EAAG,MAAM,CAAC;IAGzB,aAAa,EAAG,MAAM,CAAC;IAGvB,QAAQ,EAAG,MAAM,CAAC;CACnB"}
