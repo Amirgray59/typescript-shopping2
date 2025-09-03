@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
+    "@types/node": "^24.3.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "fastify": "^5.5.0",
+    "mysql2": "^3.14.3",
+    "swagger": "^0.7.5",
+    "typeorm": "^0.3.26"
+  },
+  "name": "main3",
+  "version": "1.0.0",
+  "main": "server.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "watch": "tsc -w",
+    "clean": "rm -rf dist"
+  }
+,
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
