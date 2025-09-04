@@ -21,10 +21,13 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto {
+
+
   @IsOptional()
   @IsString()
   name?: string;
 
+  
   @IsOptional()
   @IsString()
   description?: string;

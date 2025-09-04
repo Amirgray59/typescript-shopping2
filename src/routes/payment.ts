@@ -28,6 +28,10 @@ const paySingle = {
     }
 }
 
+interface OrderQuery {
+    orderId?:number
+}
+
 export const paymentRoute = (server:any, options:any, done:any) => {
 
     const payRepo = SourceData.getRepository(Payment);
@@ -64,7 +68,8 @@ export const paymentRoute = (server:any, options:any, done:any) => {
 
     server.get('/payments/:id', paySingle, async (req:any, res:any) => {
         try {
-            const payment = await payRepo.findOneBy({id:req.params.id});
+            const id = req.params.id;
+            const payment = await payRepo.findOneBy({id:id});
 
             if (!payment) {
                 return res.status(404).send({error:'Payment nout found'})
@@ -79,9 +84,16 @@ export const paymentRoute = (server:any, options:any, done:any) => {
 
     server.get('/payments', async (req:any, res:any) => {
         try {
-            const payments = await payRepo.find();
+            const {orderId} = req.query as OrderQuery;
 
-            res.status(200).send(payments)
+            if (!orderId) {
+                const payments = await payRepo.find();
+                return res.status(200).send(payments)
+
+            }
+            const payment = payRepo.findOneBy({id:orderId});
+            res.status(200).send(payment)
+
         }
         catch(err:any) {
             res.status(500).send({error:err.message})

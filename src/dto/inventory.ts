@@ -14,6 +14,7 @@ export class NewInventory {
 }
 
 export class ChangeInventory{
+  
   @IsNumber()
   productId!: number;
 

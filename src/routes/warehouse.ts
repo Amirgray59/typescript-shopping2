@@ -75,7 +75,8 @@ export const warehouseRoute = (server:any, options:any, done:any) => {
                 res.status(404).send({error:'Warehouse not found'})
             }
             else  {
-                res.removed(ware)
+                await wareRepo.remove(ware)
+                res.status(200).send({message:`Warehouse ${id} has been removed!`})
             }
         }
         catch (err:any) {

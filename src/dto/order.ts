@@ -18,10 +18,11 @@ export class CreateOrderDto {
   items!: OrderItemInput[];
 
   @IsOptional()
-  paymentMethod?: "CARD" | "CASH" | "WALLET";
+  paymentMethod?: 'CARD' | 'CASH' | 'WALLET';
+  
 }
 
 export class UpdateOrderStatusDto {
-  @IsEnum(["PENDING", "PAID", "SHIPPED", "CANCELLED"])
-  status!: "PENDING" | "PAID" | "SHIPPED" | "CANCELLED";
+  @IsEnum(["PENDING", "PAID", "SHIPPED", 'CANCELLED'])
+  status!: "PENDING" | 'PAID' | 'SHIPPED' | 'CANCELLED'
 }
