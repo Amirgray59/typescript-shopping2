@@ -5,10 +5,10 @@ declare class OrderItemInput {
 export declare class CreateOrderDto {
     userId: number;
     items: OrderItemInput[];
-    paymentMethod?: "CARD" | "CASH" | "WALLET";
+    paymentMethod?: 'CARD' | 'CASH' | 'WALLET';
 }
 export declare class UpdateOrderStatusDto {
-    status: "PENDING" | "PAID" | "SHIPPED" | "CANCELLED";
+    status: "PENDING" | 'PAID' | 'SHIPPED' | 'CANCELLED';
 }
 export {};
 //# sourceMappingURL=order.d.ts.map

@@ -43,7 +43,7 @@ export class UpdateOrderStatusDto {
     status;
 }
 __decorate([
-    IsEnum(["PENDING", "PAID", "SHIPPED", "CANCELLED"]),
+    IsEnum(["PENDING", "PAID", "SHIPPED", 'CANCELLED']),
     __metadata("design:type", String)
 ], UpdateOrderStatusDto.prototype, "status", void 0);
 //# sourceMappingURL=order.js.map

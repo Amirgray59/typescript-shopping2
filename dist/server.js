@@ -6,6 +6,7 @@ import { inventoryRoute } from './routes/inventory.js';
 import { warehouseRoute } from './routes/warehouse.js';
 import { orderRoute } from './routes/order.js';
 import { paymentRoute } from './routes/payment.js';
+import { reportRoute } from './routes/reports.js';
 import "reflect-metadata";
 import Swagger from '@fastify/swagger';
 import SwaggerUi from '@fastify/swagger-ui';
@@ -20,6 +21,7 @@ server.register(warehouseRoute);
 server.register(inventoryRoute);
 server.register(orderRoute);
 server.register(paymentRoute);
+server.register(reportRoute);
 const start = async () => {
     try {
         await SourceData.initialize();

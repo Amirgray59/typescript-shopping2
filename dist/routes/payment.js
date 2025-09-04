@@ -50,7 +50,8 @@ export const paymentRoute = (server, options, done) => {
     });
     server.get('/payments/:id', paySingle, async (req, res) => {
         try {
-            const payment = await payRepo.findOneBy({ id: req.params.id });
+            const id = req.params.id;
+            const payment = await payRepo.findOneBy({ id: id });
             if (!payment) {
                 return res.status(404).send({ error: 'Payment nout found' });
             }
@@ -62,8 +63,13 @@ export const paymentRoute = (server, options, done) => {
     });
     server.get('/payments', async (req, res) => {
         try {
-            const payments = await payRepo.find();
-            res.status(200).send(payments);
+            const { orderId } = req.query;
+            if (!orderId) {
+                const payments = await payRepo.find();
+                return res.status(200).send(payments);
+            }
+            const payment = payRepo.findOneBy({ id: orderId });
+            res.status(200).send(payment);
         }
         catch (err) {
             res.status(500).send({ error: err.message });
