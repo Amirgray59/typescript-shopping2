@@ -14,7 +14,7 @@ export class Order {
   @Column({default: 'PENDING'})
   status!: OrderStatus;
 
-  @OneToMany(()=> OrderItem,(item) =>item.order)
+  @OneToMany(()=> OrderItem,(item) =>item.order, {onDelete: "CASCADE", cascade:true})
   items!: OrderItem[];
 
   @Column('float')
@@ -41,6 +41,6 @@ export class OrderItem {
   @Column('float')
   unitPrice!: number;
 
-  @ManyToOne(() => Order, (order) => order.items)
+  @ManyToOne(() => Order, (order) => order.items, {onDelete:"CASCADE"})
   order!: Order;
 }
