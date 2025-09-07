@@ -158,17 +158,18 @@ export const orderRoute = (server:FastifyInstance, options:any, done:()=>void) =
     server.delete('/order/:id', {schema: OrderDelete}, async (req:FastifyRequest<{Params:typeof OrderDelete.params}>, res:FastifyReply) => {
         
         const id = req.params.id;
-        return await SourceData.transaction(async (manager) => {  
-            
-            const order = await manager.findOneBy(Order, {id:id});
+        const orderRepo = SourceData.getRepository(Order);
+        const orderItemRepo = SourceData.getRepository(OrderItem);
+        
+            const order = await orderRepo.findOneBy({id:id});
             if (order && order.status == 'PENDING') {
-                await manager.remove(Order, order)
+                await orderRepo.remove(order)
                 return res.send({messerage: "Order has been removed"})
             }   
             else {
-                throw Object.assign(new Error('Order not found of status is not PENDING'), {statusCode:409})
+                throw Object.assign(new Error('Order not found of or status is not PENDING'), {statusCode:409})
             }
-        })
+        
     })
 
     server.put('/order/:id/:status', {schema:OrderUpdate}, async (req:FastifyRequest<{Params:typeof OrderUpdate.params}>, res:FastifyReply) => {
