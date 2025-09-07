@@ -26,7 +26,7 @@ __decorate([
     __metadata("design:type", Order)
 ], Payment.prototype, "orderId", void 0);
 __decorate([
-    Column(),
+    Column('float'),
     __metadata("design:type", Number)
 ], Payment.prototype, "amount", void 0);
 __decorate([
@@ -34,7 +34,7 @@ __decorate([
     __metadata("design:type", String)
 ], Payment.prototype, "status", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
 ], Payment.prototype, "transactionRef", void 0);
 __decorate([

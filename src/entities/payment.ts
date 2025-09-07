@@ -11,13 +11,13 @@ export class Payment {
     @OneToOne(() => Order)
     orderId!:Order;
 
-    @Column()
+    @Column('float')
     amount!:number;
 
     @Column({default:'PENDING'})
     status!:Status;
 
-    @Column()
+    @Column('varchar')
     transactionRef!:string;
     
     @CreateDateColumn()

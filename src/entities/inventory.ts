@@ -10,13 +10,13 @@ export class Inventory {
     @ManyToOne(() => Product, { onDelete: "CASCADE" })
     product!: Product;
 
-    @Column()
+    @Column('int')
     productId!:number;
 
     @ManyToOne(() => Warehouse, { onDelete: "CASCADE" })
     warehouse!: Warehouse;
 
-    @Column()
+    @Column('itn')
     warehouseId!:number;
 
     @Column('int')

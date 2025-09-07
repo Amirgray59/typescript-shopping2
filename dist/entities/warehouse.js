@@ -20,11 +20,11 @@ __decorate([
     __metadata("design:type", Number)
 ], Warehouse.prototype, "id", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
 ], Warehouse.prototype, "name", void 0);
 __decorate([
-    Column(),
+    Column('text'),
     __metadata("design:type", String)
 ], Warehouse.prototype, "location", void 0);
 __decorate([

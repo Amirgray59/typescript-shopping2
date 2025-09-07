@@ -1,95 +1,61 @@
 import { Category } from "../entities/category.js";
 import { SourceData } from "../db.js";
+import { Type } from "@sinclair/typebox";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 
-
-const categoryAdd = {
-    schema: {
-        body: {
-            type:'object',
-            properties: {
-                name: {type:'string'},
-                parentId: {type:'number'}
-            }
-        }
-    }
-} 
-
-const categoryUpdate = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {
-                id: {type: 'string'}
-            },
-            required:['id']
-        },
-        body : {
-            type:'object',
-            properties: {
-                name: {type:'string'},
-                parentId: {type:'number'}
-            }
-        }
-    }
+const CategoryAdd = {
+    body: Type.Object({
+        name: Type.String(),
+        parentId : Type.Number()
+    })
 }
 
+const CategoryUpdate= {
+    params: Type.Object({
+        id: Type.Number()
+    }),
+    body: Type.Object({
+        name: Type.String(),
+        parentId : Type.Number()
+    })
+}
 
-const categoryDelete = {
-    schema: {
-    params: {
-        type:'object',
-        properties: {
-            id: {type: 'string'}
-        },
-        required:['id']
-    }
-    }}
-
+const CategoryDelete = {
+    params: Type.Object({
+        id: Type.Number()
+    })
+}
+    
 interface categoryQuery {
     page?:number,
     limit?:number,
     q?:string
 }
 
-const categorySingle = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {
-                id:{type:'number'}
-            },
-            required:['id']
-        }
-    }
-}
+export const categoryRoute = (server:FastifyInstance, options:any, done:()=>void) => {
 
-export const categoryRoute = (server:any, options:any, done:any) => {
+    server.post('/category', {schema:CategoryAdd}, async (req:FastifyRequest<{Body:typeof CategoryAdd.body}>, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
 
-    const categoryRepo = SourceData.getRepository(Category);
-
-    server.post('/category', categoryAdd, async (req:any, res:any) => {
-        try{     
             const {name, parentId} = req.body;
             
-            const category = categoryRepo.create({name:name, parentId:parentId});
-            const saved = await categoryRepo.save(category);
+            const category = manager.create(Category, {name:name, parentId:parentId});
+            const saved = await manager.save(Category, category);
 
             res.status(201).send(saved)
         
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
     })
 
-    server.get('/category', async (req:any, res:any) => {
-        try {
-            const {page="1", limit="20", q} = req.query;
+    server.get('/category', async (req:FastifyRequest, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
+
+            const {page="1", limit="20", q} = req.query as categoryQuery;
 
             const pageN = Number(page);
             const limitN= Number(limit);
 
-            const fil = categoryRepo.createQueryBuilder('category')
+            const fil = manager.createQueryBuilder(Category, 'category')
 
             if (q) {
                 fil.andWhere('category.name LIKE :q', {q:`%${q}%`})
@@ -103,72 +69,62 @@ export const categoryRoute = (server:any, options:any, done:any) => {
                 res.status(200).send(result)
             }
             else {
-                res.status(404).send({error:'Not found', message:'Category not found'})
+                throw Object.assign(new Error('Category not found'), {statusCode:404})
             }
-        }
-        catch (err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
     })
 
-    server.get("/category/:id",categorySingle, async (req:any, res:any) => {
-        try{
+    server.get("/category/:id",{schema:CategoryDelete}, async (req:FastifyRequest<{Params: typeof CategoryDelete.params}>, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
+        
             const id = req.params.id;
 
-            const category = await categoryRepo.findOneBy({id:id});
+            const category = await manager.findOneBy(Category, {id:id});
             if (!category) {
-                res.status(404).send({error:'Not found'})
+                throw Object.assign(new Error('Category not found'), {statusCode:404})
             }
             else {
                 res.status(200).send(category)
             }
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
 
     })
 
-    server.put('/category/:id', categoryUpdate, async (req:any, res:any) => {
-        try {
+    server.put('/category/:id', {schema:CategoryUpdate}, async (req:FastifyRequest<{Params: typeof CategoryUpdate.params, Body: typeof CategoryUpdate.body}>, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
+        
             const id = req.params.id;
 
-            const category = await categoryRepo.findOneBy({id});
-            const updateCat = req.body;
+            const category = await manager.findOneBy(Category, {id});
+            const {name, parentId} = req.body;
 
             if (!category) {
-                res.status(404).send({error:'Not found'})
+                throw Object.assign(new Error('Category not found'))
             }
             else  {
-                categoryRepo.merge(category, updateCat)
+                manager.merge(Category, category, {name, parentId})
 
-                const saved = await categoryRepo.save(category)
+                const saved = await manager.save(Category, category)
                 res.status(200).send(saved)
             }
-        }
-        catch (err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
 
     })
 
-    server.delete('/category/:id',categoryDelete, async (req:any, res:any) => {
-        try {
+    server.delete('/category/:id',{schema:CategoryDelete}, async (req:FastifyRequest<{Params: typeof CategoryDelete.params}>, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
             const id = req.params.id;
-            const category = await categoryRepo.findOneBy({id:id});
+            const category = await manager.findOneBy(Category, {id:id});
 
             if (!category) {
-                res.status(404).send({error:'Not found'})
+                throw Object.assign(new Error('Category not found'))
             }
             else {
-                await categoryRepo.remove(category);
+                await manager.remove(Category, category);
                 res.status(200).send({message:'Category has been removed!'})
 
             }
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        } 
+        })
     })
 
 

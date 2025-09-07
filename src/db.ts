@@ -7,13 +7,12 @@ import { Warehouse } from "./entities/warehouse.js";
 import { Order, OrderItem } from "./entities/order.js";
 import { Payment } from "./entities/payment.js";
 
-
 export const SourceData = new DataSource({
     type:'mariadb',
-    host: 'maindb',
-    username: 'root',
-    password: 'NH1vie3S23R3BvV55VfJFykN',
-    database: 'gifted_franklin',
+    host: process.env.DB_HOST || 'maindb',
+    username: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || 'NH1vie3S23R3BvV55VfJFykN',
+    database: process.env.DB_NAME || 'gifted_franklin',
     port:3306,
     synchronize:true,
     entities: [User, Product, Category, Inventory, Warehouse, Order, OrderItem, Payment]

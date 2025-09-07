@@ -12,6 +12,7 @@ let User = class User {
     id;
     name;
     email;
+    password;
     phone;
     address;
     createdAt;
@@ -21,19 +22,23 @@ __decorate([
     __metadata("design:type", Number)
 ], User.prototype, "id", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
 ], User.prototype, "name", void 0);
 __decorate([
-    Column({ unique: true }),
+    Column('text', { unique: true }),
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
+], User.prototype, "password", void 0);
+__decorate([
+    Column('int'),
+    __metadata("design:type", Number)
 ], User.prototype, "phone", void 0);
 __decorate([
-    Column(),
+    Column('text'),
     __metadata("design:type", String)
 ], User.prototype, "address", void 0);
 __decorate([

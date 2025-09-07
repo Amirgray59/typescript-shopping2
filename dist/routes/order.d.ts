@@ -1,2 +1,3 @@
-export declare const orderRoute: (server: any, options: any, done: any) => void;
+import type { FastifyInstance } from "fastify";
+export declare const orderRoute: (server: FastifyInstance, options: any, done: () => void) => void;
 //# sourceMappingURL=order.d.ts.map

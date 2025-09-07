@@ -23,7 +23,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Category.prototype, "id", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
 ], Category.prototype, "name", void 0);
 __decorate([

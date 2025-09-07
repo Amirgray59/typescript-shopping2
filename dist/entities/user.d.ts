@@ -2,7 +2,8 @@ export declare class User {
     id: number;
     name: string;
     email: string;
-    phone: string;
+    password: string;
+    phone: number;
     address: string;
     createdAt: Date;
 }

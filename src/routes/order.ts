@@ -3,132 +3,89 @@ import { SourceData } from "../db.js"
 import { Product } from "../entities/product.js"
 import { Order, OrderItem } from "../entities/order.js"
 import { Inventory } from "../entities/inventory.js"
+import { Type } from "@sinclair/typebox"
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify"
 
-const orderAdd = {
-    schema: {
-        body: {
-            type:'object',
-            properties: {
-                userId: {type:'number'},
-                items: {
-                    type: 'array',
-                    minItems:1,
-                    items: {
-                        type:'object',
-                        properties: {
-                            productId: {type:'number'},
-                            quantity: {type:'number'}
-                        },
-                    },
-                    required: ['productId', 'quantity', 'unitPrice']
-                },
-                paymentMethod: {
-                    type: 'string',
-                    enum: ['CARD', 'CASH']
-                }
-            },
-            required: ['userId', 'items']
-        }
-    }
+const OrderItemInput = Type.Object({
+    productId: Type.Number(),
+    quantity: Type.Number()
+}) 
+
+
+const OrderAdd = {
+    body: Type.Object({
+        userId : Type.Number(),
+        items: Type.Array(OrderItemInput),
+        paymentMethod: Type.Optional(Type.Union([Type.Literal('CARD'), Type.Literal("CASH")]))
+    })
 }
 
-const Items = {
-    type:'object',
-    properties: {
-        id: {type:'number'},
-        userId: {type:'number'},
-        items: {type:'array'},
-        total: {type:'number'},
-        createdAt: {type:'string'}
-    }
+const OrderSingle = {
+    params: Type.Object({
+        id:Type.Number()
+    })
+}
+
+const OrderDelete = {
+    params: Type.Object({
+        id:Type.Number()
+    })
+}
+
+const OrderUpdate = {
+    params: Type.Object({
+        id:Type.Number(),
+        status: Type.Union([
+            Type.Literal('PENDING'),
+            Type.Literal("PAID"),
+            Type.Literal("SHIPPED"),
+            Type.Literal("CANCELLED")
+        ])
+    })
 }
 
 
-const orderSingle = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {
-                id:{type:'number'}
-            }
-        },
-        response: {
-            200: Items
-        }
-    }
-}
-const orderDelete = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {
-                id:{type:'number'}
-            }
-        }
-    }
+interface OrderQuery {
+    page?:number, limit?:number, 
+    userId?:number, status?:string
 }
 
-const orderUpdate = {
-    schema : {
-        params: {
-            type:'object',
-            properties: {
-                id:{type:'number'},
-                status: {
-                    type:'string',
-                    enum : ["PENDING","PAID","SHIPPED",'CANCELLED']
-                }
-            }
-        }
-    }
-}
+export const orderRoute = (server:FastifyInstance, options:any, done:()=>void) => {
 
-interface ProductQuery { 
-    userId?:number,
-    status?:string, 
-    page?:number, 
-    limit?:number
-}
+    server.post('/order',{schema:OrderAdd}, async (req:FastifyRequest<{Body:typeof OrderAdd.body}>, res:FastifyReply) => {
 
-export const orderRoute = (server:any, options:any, done:any) => {
-
-    const userRepo = SourceData.getRepository(User);
-    const productRepo = SourceData.getRepository(Product);
-    const orderRepo = SourceData.getRepository(Order);
-    const orderItemRepo = SourceData.getRepository(OrderItem);
-    const inventoryRepo = SourceData.getRepository(Inventory);
-
-
-    server.post('/order',orderAdd, async (req:any, res:any) => {
-        try {
+        return await SourceData.transaction(async (manager) => {  
+        
             const all = req.body;
-            const user = await userRepo.findOneBy({id:all.userId});
+            console.log(all)
+            console.log(all.userId)
+            const user = await manager.findOneBy(User ,{id:all.userId});
             if (!user) {
-                return res.status(404).send({error:'user not found'})
+                throw Object.assign(new Error('User not found!'), {statusCode:404})
             }
 
             let total = 0;
-            const order = orderRepo.create({userId:all.userId, status:'PENDING', total:0, items:all.items})
+            const order = manager.create(Order, {userId:all.userId, status:'PENDING', total:0, items:all.items})
             const orderItems: OrderItem[] = [];
 
-            await orderRepo.save(order)
+            await manager.save(Order, order)
 
             for (const item of all.items) {
-                let prob = await productRepo.findOneBy({id:item.productId})
+                let prob = await manager.findOneBy(Product, {id:item.productId})
                 if (!prob) {
-                    return res.code(404).send({ error: `prdocuct ${item.productId} not found` });
+                    throw Object.assign(new Error('Product not found!'), {statusCode:404})
                 }
-                
-                const inventory = await inventoryRepo.find({where: {productId: item.productId}});
+
+                const inventory = await manager.find(Inventory, {where: {productId: item.productId}});
                 let neededQty = item.quantity;
                 let totalAvail = inventory.reduce((sum, inv) => sum + inv.quantity, 0)
 
                 if (neededQty> totalAvail) {
-                    return res.code(409).send({error:'Not enough stock!'})
+                    throw Object.assign(new Error('Not enough stock!'), {statusCode:409})
                 }
 
-                if (!inventory) {
-                    return res.code(409).send({error: 'No inventory!'})
+                if (inventory.length == 0) {
+                    throw Object.assign(new Error('No inventory'), {statusCode:409})
                 }
                 for (const inv of inventory) {
                     if (neededQty == 0) {
@@ -136,23 +93,23 @@ export const orderRoute = (server:any, options:any, done:any) => {
                     }
                     if (inv.quantity>= neededQty) {
                         inv.quantity -= neededQty;
-                        await inventoryRepo.save(inv);
+                        await manager.save(Inventory, inv);
                         neededQty = 0
                     }
                     else {
                         neededQty -= inv.quantity;
                         inv.quantity = 0;
-                        await inventoryRepo.save(inv);
+                        await manager.save(Inventory, inv);
                     }
                 }
 
-                let orderItem = orderItemRepo.create({
+                let orderItem = manager.create(OrderItem, {
                     productId:prob.id,
                     quantity:item.quantity,
                     unitPrice:prob.price
                 })
 
-                await orderItemRepo.save(orderItem)
+                await manager.save(OrderItem, orderItem)
                 orderItems.push(orderItem)
 
                 total += (prob.price) * item.quantity
@@ -162,69 +119,74 @@ export const orderRoute = (server:any, options:any, done:any) => {
             order.total = total;
             order.items = orderItems;
 
-            await orderRepo.save(order)
+            await manager.save(Order, order)
 
             res.status(201).send(order)
             
-        }
-        catch(err:any) {
-            res.status(500).send({error : err.message})
-        }
-
+        })
     })
 
-    server.get('/order/:id',orderSingle, async (req:any, res:any) => {
+    server.get('/order/:id',{schema:OrderSingle}, async (req:FastifyRequest<{Params:typeof OrderSingle.params}>, res:FastifyReply) => {
         const id = req.params.id;
-
-        const order = await orderRepo.findOne({where: {id}, relations:['items']});
-        if (!order) {
-            return res.status(404).send({error:"order id not found"})
-        }
-        res.status(200).send(order)
-
+        
+        return await SourceData.transaction(async (manager) => {    
+            const order = await manager.findOne(Order, {where: {id}, relations:['items']});
+            if (!order) {
+                throw Object.assign(new Error('Order not found'), {statusCode:404})
+            }
+            res.status(200).send(order)
+        })
     })
 
-    server.get('/order', async (req:any, res:any)=> {
-        const orders = await orderRepo.find({relations: ["items"]})
-        res.send(orders)
+    server.get('/order', async (req:FastifyRequest, res:FastifyReply)=> {
+        const {page = 1, limit = 20, userId, status} = req.query as OrderQuery;
+        return await SourceData.transaction(async (manager) => {  
+            const qb = manager.createQueryBuilder(Order, 'o')
+            .leftJoinAndSelect('o.items', 'items')
+            .leftJoinAndSelect(Product, 'product', 'product.id = items.productId');
+
+            if (status) qb.andWhere('o.status = :status', { status });
+            if (userId) qb.andWhere('o.userId = :userId', { userId });
+
+            const orders = await qb.take(limit).skip((page -1)*limit).getMany();
+
+            res.send(orders)
+
+        })
     })
 
-    server.delete('/order/:id', orderDelete, async (req:any, res:any) => {
-        try {
-            const id = req.params.id;
-
-            const order = await orderRepo.findOneBy({id:id});
+    server.delete('/order/:id', {schema: OrderDelete}, async (req:FastifyRequest<{Params:typeof OrderDelete.params}>, res:FastifyReply) => {
+        
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {  
+            
+            const order = await manager.findOneBy(Order, {id:id});
             if (order && order.status == 'PENDING') {
-                await orderRepo.remove(order)
+                await manager.remove(Order, order)
                 return res.send({messerage: "Order has been removed"})
             }   
             else {
-                return res.status(409).send({error: 'Order not found or status is not PENDING'})
+                throw Object.assign(new Error('Order not found of status is not PENDING'), {statusCode:409})
             }
-        }
-        catch (err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
     })
 
-    server.put('/order/:id/:status', orderUpdate, async (req:any, res:any) => {
-        try {
-            const {id, status} = req.params;
+    server.put('/order/:id/:status', {schema:OrderUpdate}, async (req:FastifyRequest<{Params:typeof OrderUpdate.params}>, res:FastifyReply) => {
 
-            const order = await orderRepo.findOne({where: {id}, relations:['items']});
+        const {id, status} = req.params;
+        return await SourceData.transaction(async (manager) => {  
+
+            const order = await manager.findOne(Order, {where: {id}, relations:['items']});
 
             if (!order) {
-                return res.status(409).send({error:'Order not found'})
+                throw Object.assign(new Error('Order not found'), {statusCode:404})
             }
             order.status = status;
 
-            await orderRepo.save(order);
+            await manager.save(Order, order);
             return res.status(200).send(order)
 
-        }
-        catch(err:any) {
-            res.status(500).send({error: err.message})
-        }
+        })
     })
     
     done()

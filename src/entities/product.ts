@@ -9,13 +9,13 @@ export class Product {
     @Column({ unique: true })
     sku!: string;
 
-    @Column()
+    @Column('varchar')
     name!: string;
 
     @Column({ nullable: true })
     description?: string;
 
-    @Column()
+    @Column('float')
     price!: number;
 
     @ManyToOne(() => Category, (category) => category.products)

@@ -1,103 +1,92 @@
 import { Payment } from "../entities/payment.js";
 import { SourceData } from "../db.js";
 import { Order } from "../entities/order.js";
+import { Type } from "@sinclair/typebox";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 
-
-const payAdd = {
-    schema: {
-        body: {
-            type:'object',
-            properties: {
-                orderId: {type:'number'},
-                amount: {type:'number'},
-                method: {type:'string', enum: ['CASH', 'CARD']},
-                transactionRef: {type:'string'}
-            }
-        }
-    }
+const PayAdd = {
+    body: Type.Object({
+        orderId: Type.Number(),
+        amount: Type.Number(),
+        method: Type.Union([
+            Type.Literal("CASH"),
+            Type.Literal("CARD")
+        ]),
+        transactionRef: Type.String()
+    })
 }
 
-const paySingle = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {
-                id:{type:'number'}
-            }
-        }
-    }
+const PaySingle = {
+    params: Type.Object({
+        id:Type.Number()
+    })
 }
 
 interface OrderQuery {
     orderId?:number
 }
 
-export const paymentRoute = (server:any, options:any, done:any) => {
+export const paymentRoute = (server:FastifyInstance, options:any, done:()=>void) => {
 
     const payRepo = SourceData.getRepository(Payment);
     const orderRepo = SourceData.getRepository(Order);
 
-    server.post('/payments',payAdd, async (req:any, res:any) => {
-        try {
-            const all = req.body;
-            const order = await orderRepo.findOneBy({id:all.orderId});
+    server.post('/payments',{schema: PayAdd}, async (req:FastifyRequest<{Body: typeof PayAdd.body}>, res:any) => {
+
+        const all = req.body;
+        return await SourceData.transaction(async (manager) => {  
+
+            const order = await manager.findOneBy(Order, {id:all.orderId});
 
             if (!order) {
-                return res.status(404).send({error:"Order not found"})
+                throw Object.assign(new Error('Order not found'), {statusCode:404}) 
             }
 
             if (all.amount > order.total) {
-                return res.status(409).send({error:'Payment amount is higher then order total!'})
+                throw Object.assign(new Error('Payment amount is higher then order total'))
             }
 
             const statusPay = 'SUCCESS';
             order.status = 'PAID';
 
-            const payment = payRepo.create({orderId:all.orderId, amount:all.amount,status:statusPay, transactionRef:all.transactionRef})
+            const payment = manager.create(Payment, {orderId:all.orderId, amount:all.amount,status:statusPay, transactionRef:all.transactionRef})
 
-            await payRepo.save(payment);
-            await orderRepo.save(order);
+            await manager.save(Payment, payment);
+            await manager.save(Order, order);
 
             res.status(201).send(payment);
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
 
     })
 
-    server.get('/payments/:id', paySingle, async (req:any, res:any) => {
-        try {
-            const id = req.params.id;
-            const payment = await payRepo.findOneBy({id:id});
+    server.get('/payments/:id', {schema:PaySingle}, async (req:FastifyRequest<{Params:typeof PaySingle.params}>, res:FastifyReply) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {  
+
+            const payment = await manager.findOneBy(Payment, {id:id});
 
             if (!payment) {
-                return res.status(404).send({error:'Payment nout found'})
+                throw Object.assign(new Error('Payment not found'), {statusCode:404})
             }
 
             res.status(200).send(payment)
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
     })
 
-    server.get('/payments', async (req:any, res:any) => {
-        try {
-            const {orderId} = req.query as OrderQuery;
+    server.get('/payments', async (req:FastifyRequest, res:FastifyReply) => {
+        
+        const {orderId} = req.query as OrderQuery;
+        return await SourceData.transaction(async (manager) => {  
 
             if (!orderId) {
-                const payments = await payRepo.find();
+                const payments = await manager.find(Payment);
                 return res.status(200).send(payments)
 
             }
-            const payment = payRepo.findOneBy({id:orderId});
+            const payment = manager.findOneBy(Payment, {id:orderId});
             res.status(200).send(payment)
 
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })
     })
 
 

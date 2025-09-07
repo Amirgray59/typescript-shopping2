@@ -1,9 +1,10 @@
 import { Order, OrderItem } from "../entities/order.js";
-import { Payment } from "../entities/payment.js";
-import { User } from "../entities/user.js";
 import { Product } from "../entities/product.js";
 import { Inventory } from "../entities/inventory.js";
 import { SourceData } from "../db.js";
+
+import { Type } from "@sinclair/typebox";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 
 interface reportDate {
     userid?:number,
@@ -26,14 +27,13 @@ interface reportMonth {
     year?: number
 }
 
-export const reportRoute = (server:any, options:any , done:any) => {
+export const reportRoute = (server:FastifyInstance, options:any , done:()=>void) => {
 
     const orderRepo =  SourceData.getRepository(Order);
     const orderItemRepo = SourceData.getRepository(OrderItem);
     const inventoryRepo = SourceData.getRepository(Inventory);
 
-    server.get("/reports/user-purchases/:userId", async (req:any, res:any) => {
-        try {
+    server.get("/reports/user-purchases/:userId", async (req:FastifyRequest, res:FastifyReply) => {
             const { userId } = req.params as { userId: string };
             const { from, to } = req.query as Record<string, string>;
 
@@ -47,15 +47,13 @@ export const reportRoute = (server:any, options:any , done:any) => {
 
             const orders = await qb.orderBy("o.createdAt", "DESC").getMany();
             res.status(200).send(orders);
-        } catch (err:any) {
-            res.status(500).send({ error: err.message });
-        }
+
     });
 
 
 
-    server.get("/reports/top-products", async (req:any, res:any) => {
-        try {
+    server.get("/reports/top-products", async (req:FastifyRequest, res:FastifyReply) => {
+
             const { from, to, limit = "10" } = req.query as reportHigh;
 
             const qb = orderItemRepo.createQueryBuilder("item")
@@ -73,13 +71,10 @@ export const reportRoute = (server:any, options:any , done:any) => {
             const results = await qb.getRawMany();
             res.status(200).send(results);
         }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
-    })
+    )
 
-    server.get('/reports/low-stock', async (req:any, res:any) => {
-        try {
+    server.get('/reports/low-stock', async (req:FastifyRequest, res:FastifyReply) => {
+
             const {threshold} = req.query as reportStock;
 
             const qb = inventoryRepo.createQueryBuilder('i').leftJoin('i.product', 'product').select('product.id','productId')
@@ -92,13 +87,9 @@ export const reportRoute = (server:any, options:any , done:any) => {
                 return res.status(409).send({error:'Not found'})
             }
             res.status(200).send(results)
-        }
-        catch(err:any) {
-            res.status(500).send(err.message)
-        }
-    })
+        })
 
-    server.get('/reports/sales-by-month', async (req:any, res:any) => {
+    server.get('/reports/sales-by-month', async (req:FastifyRequest, res:FastifyReply) => {
         const {year} = req.query as reportMonth;
 
         const qb = orderRepo.createQueryBuilder('o').select('MONTH(o.createdAt)', 'month')

@@ -1,79 +1,64 @@
 import { Payment } from "../entities/payment.js";
 import { SourceData } from "../db.js";
 import { Order } from "../entities/order.js";
-const payAdd = {
-    schema: {
-        body: {
-            type: 'object',
-            properties: {
-                orderId: { type: 'number' },
-                amount: { type: 'number' },
-                method: { type: 'string', enum: ['CASH', 'CARD'] },
-                transactionRef: { type: 'string' }
-            }
-        }
-    }
+import { Type } from "@sinclair/typebox";
+const PayAdd = {
+    body: Type.Object({
+        orderId: Type.Number(),
+        amount: Type.Number(),
+        method: Type.Union([
+            Type.Literal("CASH"),
+            Type.Literal("CARD")
+        ]),
+        transactionRef: Type.String()
+    })
 };
-const paySingle = {
-    schema: {
-        params: {
-            type: 'object',
-            properties: {
-                id: { type: 'number' }
-            }
-        }
-    }
+const PaySingle = {
+    params: Type.Object({
+        id: Type.Number()
+    })
 };
 export const paymentRoute = (server, options, done) => {
     const payRepo = SourceData.getRepository(Payment);
     const orderRepo = SourceData.getRepository(Order);
-    server.post('/payments', payAdd, async (req, res) => {
-        try {
-            const all = req.body;
-            const order = await orderRepo.findOneBy({ id: all.orderId });
+    server.post('/payments', { schema: PayAdd }, async (req, res) => {
+        const all = req.body;
+        return await SourceData.transaction(async (manager) => {
+            const order = await manager.findOneBy(Order, { id: all.orderId });
             if (!order) {
-                return res.status(404).send({ error: "Order not found" });
+                throw Object.assign(new Error('Order not found'), { statusCode: 404 });
             }
             if (all.amount > order.total) {
-                return res.status(409).send({ error: 'Payment amount is higher then order total!' });
+                throw Object.assign(new Error('Payment amount is higher then order total'));
             }
             const statusPay = 'SUCCESS';
             order.status = 'PAID';
-            const payment = payRepo.create({ orderId: all.orderId, amount: all.amount, status: statusPay, transactionRef: all.transactionRef });
-            await payRepo.save(payment);
-            await orderRepo.save(order);
+            const payment = manager.create(Payment, { orderId: all.orderId, amount: all.amount, status: statusPay, transactionRef: all.transactionRef });
+            await manager.save(Payment, payment);
+            await manager.save(Order, order);
             res.status(201).send(payment);
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+        });
     });
-    server.get('/payments/:id', paySingle, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const payment = await payRepo.findOneBy({ id: id });
+    server.get('/payments/:id', { schema: PaySingle }, async (req, res) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {
+            const payment = await manager.findOneBy(Payment, { id: id });
             if (!payment) {
-                return res.status(404).send({ error: 'Payment nout found' });
+                throw Object.assign(new Error('Payment not found'), { statusCode: 404 });
             }
             res.status(200).send(payment);
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+        });
     });
     server.get('/payments', async (req, res) => {
-        try {
-            const { orderId } = req.query;
+        const { orderId } = req.query;
+        return await SourceData.transaction(async (manager) => {
             if (!orderId) {
-                const payments = await payRepo.find();
+                const payments = await manager.find(Payment);
                 return res.status(200).send(payments);
             }
-            const payment = payRepo.findOneBy({ id: orderId });
+            const payment = manager.findOneBy(Payment, { id: orderId });
             res.status(200).send(payment);
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+        });
     });
     done();
 };

@@ -1,87 +1,72 @@
 import { SourceData } from "../db.js";
 import { Warehouse } from "../entities/warehouse.js";
+import { Type } from "@sinclair/typebox";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 
-const wareCreate = {
-    schema: {
-        body: {
-            type:'object',
-            properties: {
-                name: {type:'string'},
-                location: {type:'string'}
-            }
-        }
-    }
+const WareCreate = {
+    body: Type.Object({
+        name: Type.String(),
+        location:Type.String()
+    })
 }
 
-const wareSingle = {
-    schama: {
-        params: {
-            type:'object',
-            properties: {id:{type:'number'}},
-            required: ['id']
-        }
-    }
+const WareSingle = {
+    params: Type.Object({
+        id:Type.Number()
+    })
 }
 
-export const warehouseRoute = (server:any, options:any, done:any) => {
+export const warehouseRoute = (server:FastifyInstance, options:any, done:()=>void) => {
 
     const wareRepo =  SourceData.getRepository(Warehouse);
     
-    server.post('/warehouse', wareCreate, async (req:any, res:any) => {
-        try{
-            
-            const {name, location} = req.body;
-            const wareHouse = wareRepo.create({name, location});
-            const result = await wareRepo.save(wareHouse);
-            
+    server.post('/warehouse', {schema:WareCreate}, async (req:FastifyRequest<{Body:typeof WareCreate.body}>, res:FastifyReply) => {
+        const {name, location} = req.body;
+        return await SourceData.transaction(async (manager) => {  
+
+            const wareHouse = manager.create(Warehouse, {name, location});
+            const result = await manager.save(Warehouse, wareHouse);
+
             res.send(result)
+        })    
+    })
+
+    server.get('/warehouse', async (req:FastifyRequest, res:FastifyReply) => {
+        return await SourceData.transaction(async (manager) => {  
+            const warehouses = await manager.find(Warehouse);
+
+            res.send(warehouses)
+        })
+    })
+
+    server.get('/warehouse/:id',{schema:WareSingle}, async (req:FastifyRequest<{Params:typeof WareSingle.params}>, res:FastifyReply) => {
+    
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {  
+            const ware = await manager.findOneBy(Warehouse, {id:id});
+
+            if (!ware) {
+                throw Object.assign(new Error('Warehouse not found'), {statusCode:404})
+            }
+            res.send(ware)
             
-        }
-        catch(err:any) {
-            res.status(500).send({error:err.message})
-        }
+        })        
     })
 
-    server.get('/warehouse', async (req:any, res:any) => {
-        const warehouses = await wareRepo.find();
+    server.delete('/warehouse/:id',{schema:WareSingle}, async (req:FastifyRequest<{Params:typeof WareSingle.params}>, res:FastifyReply) => {
 
-        res.send(warehouses)
-    })
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {  
 
-    server.get('/warehouse/:id',wareSingle, async (req:any, res:any) => {
-        try {
-            const id = req.params.id;
-            const ware = await wareRepo.findOneBy({id:id});
+            const ware = await manager.findOneBy(Warehouse, {id:id});
 
             if (!ware) {
-                res.status(404).send({error:'Warehouse not found'})
+                throw Object.assign(new Error('Warehouse not found'), {statusCode:404})
             }
-            else  {
-                res.send(ware)
-            }
-        }
-        catch (err:any) {
-            res.status(500).send({error:err.message})
-        }
-        
-    })
-
-    server.delete('/warehouse/:id',wareSingle, async (req:any, res:any) => {
-        try {
-            const id = req.params.id;
-            const ware = await wareRepo.findOneBy({id:id});
-
-            if (!ware) {
-                res.status(404).send({error:'Warehouse not found'})
-            }
-            else  {
-                await wareRepo.remove(ware)
-                res.status(200).send({message:`Warehouse ${id} has been removed!`})
-            }
-        }
-        catch (err:any) {
-            res.status(500).send({error:err.message})
-        }
+            await manager.remove(Warehouse, ware)
+            res.status(200).send({message:`Warehouse ${id} has been removed!`})
+            
+        })
         
     })
 

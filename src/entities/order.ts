@@ -8,7 +8,7 @@ export class Order {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column('varchar')
   userId!: number;
 
   @Column({default: 'PENDING'})
@@ -17,7 +17,7 @@ export class Order {
   @OneToMany(()=> OrderItem,(item) =>item.order)
   items!: OrderItem[];
 
-  @Column()
+  @Column('float')
   total!: number;
 
   @CreateDateColumn()
@@ -32,13 +32,13 @@ export class OrderItem {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column('int')
   productId!: number;
 
-  @Column()
+  @Column('int')
   quantity!: number;
 
-  @Column()
+  @Column('float')
   unitPrice!: number;
 
   @ManyToOne(() => Order, (order) => order.items)

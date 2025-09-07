@@ -1,5 +1,7 @@
 import {User} from '../entities/user.js'
 import { SourceData } from '../db.js'
+import type {FastifyInstance, FastifyRequest, FastifyReply}  from 'fastify'
+import { Type } from '@sinclair/typebox'
 
 interface UserQuery {
     name?:string,
@@ -8,168 +10,70 @@ interface UserQuery {
     limit?:number
 }
 
-const Items = {
-    type:'object',
-    properties: {
-        id: {type: 'number'},
-        email: {type: 'string'},
-        name: {type: 'string'},
-        phone: {type: 'string'},
-        address: {type: 'string'},
-        createdAt: {type: 'string'}
+const Items = Type.Object({
+    id: Type.Number(),
+    email: Type.String(),
+    password:Type.String(),
+    name: Type.String(),
+    phone:Type.Number(),
+    address: Type.String(),
+    createdAt:Type.String()
+})
+
+const AddUser = {
+    body: Type.Object({
+        name: Type.String(),
+        email:Type.String(),
+        password:Type.String(),
+        phone:Type.Number(),
+        address:Type.String()
+    })
+}
+
+const SingleUser = {
+    params: Type.Object({
+        id: Type.Number()
+    }),
+    response: {
+        200: Items
     }
 }
 
-const showUser = {
-    schema: {
-        response: {
-            200: {
-                type:'array',
-                items: Items
-            },
-            404: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            },
-            500: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            }
-        }
+const UpdateUser = {
+    params: Type.Object({
+        id:Type.Number()
+    }),
+    body: Type.Object({
+        name: Type.String(),
+        email:Type.String(),
+        password:Type.String(),
+        phone:Type.Number(),
+        address: Type.String()
+    }),
+    response: {
+        200: Items
     }
 }
 
-const addUser = {
-    schema: {
-        body: {
-            type:'object',
-            properties: {
-                name: {type:'string'},
-                email: {type:'string'},
-                phone: {type:'string'},
-                address:{type:'string'},
-            }
-        },
-        response: {
-            201: Items,
-            500: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            }
-        }
-    }
-}
-
-const singleUser = {
-    schema : {
-        params: {
-            type: 'object',
-            properties: {
-                id: {type:'number'}
-            },
-            required: ['id']
-        },
-        response: {
-            200: Items,
-            404: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            },
-            500: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            }
-        }
-    }
-}
-
-const updateUser = {
-    schema: {
-        params: {
-            type: 'object',
-            properties: {
-                id: {type:'number'}
-            },
-            required: ['id']
-        },
-        body: {
-            type: 'object',
-            properties: {
-                name: {type:'string'},
-                email: {type:'string'},
-                phone: {type:'string'},
-                address: {type:'string'},
-            }
-        },
-        response: {
-            200: Items,
-            404: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            },
-            500: {
-                type:'object',
-                properties: {
-                    error: {type:'string'},
-                    message: {type:'string'}
-                }
-            }
-        }
-    }
-}
-
-const userDelete = {
-    schema: {
-        params: {
-            type:'object',
-            properties: {id:{type:'number'}},
-            required: ['id']
-        },
-        response: {
-            200:{message:{type:'string'}},
-            404: {
-                error: {type:'string'},
-                message: {type:'string'}
-            },
-            500: {
-                error: {type:'string'},
-                message: {type:'string'}    
-            }
-        }
-    }
+const DeleteUser = {
+    params: Type.Object({
+        id:Type.Number()
+    })
 }
 
 
 
-export const userRoutes = (server:any, options:any, done:any)=> {
+export const userRoutes = (server:FastifyInstance, options:any, done:()=>void)=> {
     server.get('/', (req:any,res:any)=> {
         res.send('welcome!')
     })
 
-    server.get('/users',showUser, async (req:any, res:any)=>{
-        try{
-            const {page=1, limit=20, name, email} = req.query as UserQuery;
-            const userRepo = SourceData.getRepository(User);
+    server.get('/users', async (req:FastifyRequest, res:FastifyReply)=>{
+        const {page=1, limit=20, name, email} = req.query as UserQuery;
 
-            const query = userRepo.createQueryBuilder('user');
+        return await SourceData.transaction(async (manager) => {
+
+            const query = manager.createQueryBuilder(User, 'user');
 
             if (name) {
                 query.andWhere('user.name LIKE :name', {name: `%${name}%`});
@@ -183,111 +87,85 @@ export const userRoutes = (server:any, options:any, done:any)=> {
             const users = await query.getMany()
 
             if (users.length == 0) {
-                res.status(404).send({error: 'Not found!', message: 'User not found'})
+                throw Object.assign(new Error("User not found!"), {statusCode:404})
             }
             else {
                 res.status(200).send(users)
             }
+        })
 
-        }
-        catch(err:any) {
-            res.status(500).send({error:'Internet server error', 
-                message: err.message
-            })
-        }
         
     })
 
-    server.post('/users',addUser, async (req:any, res:any)=> {
-        try {
+    server.post('/users',{schema: AddUser}, async (req:FastifyRequest<{Body:typeof AddUser.body}>, res:FastifyReply)=> {
 
-            const {name, email, phone, address} = req.body;
-            const userRepo = SourceData.getRepository(User);
+        const {name, email,password, phone, address} = req.body;
 
-            const newUser = userRepo.create({name, email, phone, address});
-            const saveUser = await userRepo.save(newUser)
+        return await SourceData.transaction(async (manager) => {
+            const newUser = manager.create(User, {name, email, password,phone, address});
 
-            res.status(201).send(saveUser) 
-            
-        }
-        catch(err) {
-            res.status(500).send({error:err, message:'Internet server error'})
-        }
+            const exist = await manager.findOneBy(User, {email:email});
+
+            if (exist) {
+                throw Object.assign(new Error('Email already exist'), {statusCode:409})
+            }
+            const saveUser = await manager.save(User, newUser)
+
+            res.status(201).send(saveUser)
+        })
+ 
     })
 
-    server.get('/users/:id', singleUser, async (req:any, res:any) => {
+    server.get('/users/:id', {schema:SingleUser}, async (req:FastifyRequest<{Params:typeof SingleUser.params}>, res:FastifyReply) => {
         const id = req.params.id 
 
-        const userRepo = SourceData.getRepository(User);
-        
-        try { 
-            const user = await userRepo.findOneBy({id})
+        return await SourceData.transaction(async (manager) => {
+            const user = await manager.findOneBy(User, {id:id})
 
             if (!user) {
-                res.status(404).send({
-                    error: 'Not found',
-                    message: 'User not found!'
-                })
+                throw Object.assign(new Error("User not found"), {statusCode:404})
             }
             else {
                 res.status(200).send(user)
             }
-        }
-        catch (err) {
-            res.status(500).send({
-                error: err ,
-                message: 'Internet server error'
-            })
-        }
+        })
+
     })
 
-    server.put('/users/:id', updateUser, async (req:any, res:any) => {
+    server.put('/users/:id', {schema:UpdateUser}, async (req:FastifyRequest<{Params: typeof UpdateUser.params, Body:typeof UpdateUser.body}>, res:FastifyReply) => {
         const id = req.params.id;
-        const userRepo = SourceData.getRepository(User);
 
-        const updateData = req.body;
+        const {name, email, password,phone, address} = req.body;
+        const updateData = {name, email, password,phone ,address};
 
-        try {
-            const user = await userRepo.findOneBy({id})
+        return await SourceData.transaction(async (manager) => {
+
+            const user = await manager.findOneBy(User, {id})
 
             if(!user) {
-                res.status(404).send({error:'Not found', message: 'User not found'})
+                throw Object.assign(new Error('User not found'), {statusCode:404})
             }
             else {
-                userRepo.merge(user,updateData)
-    
-                const saved = await userRepo.save(user);
+                await manager.merge(User, user,updateData)
+
+                const saved = await manager.save(User, user);
                 res.status(200).send(saved)
             }
-        }
-        catch(err) {
-            res.status(500).send({
-            error: err ,
-            message: 'Internet server error'
-            })
-        }
+    })
     })
 
-    server.delete('/users/:id',userDelete, async (req:any, res:any) => {
+    server.delete('/users/:id',{schema:DeleteUser}, async (req:FastifyRequest<{Params: typeof DeleteUser.params}>, res:FastifyReply) => {
         const id = req.params.id;
-
-        try {
-            const userRepo = SourceData.getRepository(User);
-            
-            const user:any = await userRepo.findOneBy({id});
+        
+        return await SourceData.transaction(async (manager) => {
+            const user = await manager.findOneBy(User, {id});
             
             if (!user) {
-                res.status(404).send({error: 'Not found', message:'User not found!'})
+                throw Object.assign(new Error('User not found!'), {statusCode:404})
             }
-            else {
-                await userRepo.remove(user);
-                res.status(200).send({message:`User with ID: ${id} has been deleted!`})
-            }
-        }
-
-        catch (err:any) {
-            res.status(500).send({error: err.message, message:'Internet server error!'})
-        }
+            await manager.remove(User ,user);
+            res.send({message:`User  has been deleted!`})
+        })
     })
     
     done()

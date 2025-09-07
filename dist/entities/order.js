@@ -22,7 +22,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Order.prototype, "id", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", Number)
 ], Order.prototype, "userId", void 0);
 __decorate([
@@ -34,7 +34,7 @@ __decorate([
     __metadata("design:type", Array)
 ], Order.prototype, "items", void 0);
 __decorate([
-    Column(),
+    Column('float'),
     __metadata("design:type", Number)
 ], Order.prototype, "total", void 0);
 __decorate([
@@ -61,15 +61,15 @@ __decorate([
     __metadata("design:type", Number)
 ], OrderItem.prototype, "id", void 0);
 __decorate([
-    Column(),
+    Column('int'),
     __metadata("design:type", Number)
 ], OrderItem.prototype, "productId", void 0);
 __decorate([
-    Column(),
+    Column('int'),
     __metadata("design:type", Number)
 ], OrderItem.prototype, "quantity", void 0);
 __decorate([
-    Column(),
+    Column('float'),
     __metadata("design:type", Number)
 ], OrderItem.prototype, "unitPrice", void 0);
 __decorate([

@@ -1,72 +1,53 @@
 import { SourceData } from "../db.js";
 import { Warehouse } from "../entities/warehouse.js";
-const wareCreate = {
-    schema: {
-        body: {
-            type: 'object',
-            properties: {
-                name: { type: 'string' },
-                location: { type: 'string' }
-            }
-        }
-    }
+import { Type } from "@sinclair/typebox";
+const WareCreate = {
+    body: Type.Object({
+        name: Type.String(),
+        location: Type.String()
+    })
 };
-const wareSingle = {
-    schama: {
-        params: {
-            type: 'object',
-            properties: { id: { type: 'number' } },
-            required: ['id']
-        }
-    }
+const WareSingle = {
+    params: Type.Object({
+        id: Type.Number()
+    })
 };
 export const warehouseRoute = (server, options, done) => {
     const wareRepo = SourceData.getRepository(Warehouse);
-    server.post('/warehouse', wareCreate, async (req, res) => {
-        try {
-            const { name, location } = req.body;
-            const wareHouse = wareRepo.create({ name, location });
-            const result = await wareRepo.save(wareHouse);
+    server.post('/warehouse', { schema: WareCreate }, async (req, res) => {
+        const { name, location } = req.body;
+        return await SourceData.transaction(async (manager) => {
+            const wareHouse = manager.create(Warehouse, { name, location });
+            const result = await manager.save(Warehouse, wareHouse);
             res.send(result);
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+        });
     });
     server.get('/warehouse', async (req, res) => {
-        const warehouses = await wareRepo.find();
-        res.send(warehouses);
+        return await SourceData.transaction(async (manager) => {
+            const warehouses = await manager.find(Warehouse);
+            res.send(warehouses);
+        });
     });
-    server.get('/warehouse/:id', wareSingle, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const ware = await wareRepo.findOneBy({ id: id });
+    server.get('/warehouse/:id', { schema: WareSingle }, async (req, res) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {
+            const ware = await manager.findOneBy(Warehouse, { id: id });
             if (!ware) {
-                res.status(404).send({ error: 'Warehouse not found' });
+                throw Object.assign(new Error('Warehouse not found'), { statusCode: 404 });
             }
-            else {
-                res.send(ware);
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+            res.send(ware);
+        });
     });
-    server.delete('/warehouse/:id', wareSingle, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const ware = await wareRepo.findOneBy({ id: id });
+    server.delete('/warehouse/:id', { schema: WareSingle }, async (req, res) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {
+            const ware = await manager.findOneBy(Warehouse, { id: id });
             if (!ware) {
-                res.status(404).send({ error: 'Warehouse not found' });
+                throw Object.assign(new Error('Warehouse not found'), { statusCode: 404 });
             }
-            else {
-                await wareRepo.remove(ware);
-                res.status(200).send({ message: `Warehouse ${id} has been removed!` });
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message });
-        }
+            await manager.remove(Warehouse, ware);
+            res.status(200).send({ message: `Warehouse ${id} has been removed!` });
+        });
     });
     done();
 };

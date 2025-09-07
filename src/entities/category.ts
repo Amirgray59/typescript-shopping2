@@ -6,7 +6,7 @@ export class Category {
     @PrimaryGeneratedColumn()
     id!:number;
 
-    @Column()
+    @Column('varchar')
     name!:string;
 
     @ManyToOne(() => Category, (category)=> category.children, {nullable:true})

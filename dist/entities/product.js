@@ -27,7 +27,7 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "sku", void 0);
 __decorate([
-    Column(),
+    Column('varchar'),
     __metadata("design:type", String)
 ], Product.prototype, "name", void 0);
 __decorate([
@@ -35,7 +35,7 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "description", void 0);
 __decorate([
-    Column(),
+    Column('float'),
     __metadata("design:type", Number)
 ], Product.prototype, "price", void 0);
 __decorate([

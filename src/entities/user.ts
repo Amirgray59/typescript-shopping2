@@ -5,16 +5,19 @@ export class User {
     @PrimaryGeneratedColumn()
     id!:number;
 
-    @Column()
+    @Column('varchar')
     name!:string;
 
-    @Column({unique:true})
+    @Column('text', {unique:true})
     email!:string;
 
-    @Column()
-    phone!:string;
+    @Column('varchar')
+    password!:string;
 
-    @Column()
+    @Column('int')
+    phone!:number;
+
+    @Column('text')
     address!:string;
 
     @CreateDateColumn()

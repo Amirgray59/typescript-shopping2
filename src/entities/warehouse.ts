@@ -6,10 +6,10 @@ export class Warehouse {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column('varchar')
   name!: string;
 
-  @Column()
+  @Column('text')
   location!: string;
 
   @OneToMany(() => Inventory, (inventory) => inventory.warehouse)

@@ -28,7 +28,7 @@ __decorate([
     __metadata("design:type", Product)
 ], Inventory.prototype, "product", void 0);
 __decorate([
-    Column(),
+    Column('int'),
     __metadata("design:type", Number)
 ], Inventory.prototype, "productId", void 0);
 __decorate([
@@ -36,7 +36,7 @@ __decorate([
     __metadata("design:type", Warehouse)
 ], Inventory.prototype, "warehouse", void 0);
 __decorate([
-    Column(),
+    Column('itn'),
     __metadata("design:type", Number)
 ], Inventory.prototype, "warehouseId", void 0);
 __decorate([

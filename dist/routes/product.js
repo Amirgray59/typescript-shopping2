@@ -3,182 +3,78 @@ import { SourceData } from "../db.js";
 import { UpdateProductDto } from "../dto/product.js";
 import { Category } from "../entities/category.js";
 import { validateOrReject } from "class-validator";
-const Items = {
-    type: 'object',
-    properties: {
-        id: { type: 'number' },
-        sku: { type: 'string' },
-        name: { type: 'string' },
-        description: { type: 'string' },
-        price: { type: 'number' },
-        createdAt: { type: 'string' }
+import { Type } from '@sinclair/typebox';
+const Items = Type.Object({
+    id: Type.Number(),
+    sku: Type.String(),
+    name: Type.String(),
+    description: Type.String(),
+    price: Type.Number(),
+    createdAt: Type.String(),
+});
+const ProductAdd = {
+    body: Type.Object({
+        sku: Type.String(),
+        name: Type.String(),
+        description: Type.String(),
+        price: Type.Number(),
+        categoryId: Type.Number()
+    }),
+    response: {
+        200: Items
     }
 };
-const productAdd = {
-    schema: {
-        body: {
-            type: 'object',
-            properties: {
-                sku: { type: 'string' },
-                name: { type: 'string' },
-                description: { type: 'string' },
-                price: { type: 'number' },
-                categoryId: { type: 'number' }
-            }
-        },
-        response: {
-            201: Items,
-            500: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            }
-        }
-    }
+const ProductSingle = {
+    params: Type.Object({
+        id: Type.Number()
+    })
 };
-const productShow = {
-    schema: {
-        response: {
-            200: Items,
-            404: { type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                } },
-            500: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            }
-        }
-    }
+const ProductUpdate = {
+    params: Type.Object({
+        id: Type.Number()
+    }),
+    body: Type.Object({
+        sku: Type.String(),
+        name: Type.String(),
+        description: Type.String(),
+        price: Type.Number(),
+        categoryId: Type.Number()
+    })
 };
-const singleProoduct = {
-    schema: {
-        params: {
-            type: 'object',
-            properties: {
-                id: { type: 'number' }
-            }
-        },
-        response: {
-            200: Items,
-            404: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            },
-            500: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            }
-        }
-    }
-};
-const productUpdate = {
-    schema: {
-        params: {
-            type: 'object',
-            properties: { id: { type: 'number' } },
-            required: ['id']
-        },
-        body: {
-            type: 'object',
-            properties: {
-                sku: { type: 'string' },
-                name: { type: 'string' },
-                description: { type: 'string' },
-                price: { type: 'number' },
-                categoryId: { type: 'number' }
-            }
-        },
-        response: {
-            200: Items,
-            404: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            },
-            500: {
-                type: 'object',
-                properties: {
-                    error: { type: 'string' },
-                    message: { type: 'string' }
-                }
-            }
-        }
-    }
-};
-const deleteProduct = {
-    schema: {
-        params: {
-            type: 'object',
-            properties: { id: { type: 'number' } },
-            required: ['id']
-        },
-        response: {
-            200: { message: { type: 'string' } },
-            404: {
-                error: { type: 'string' },
-                message: { type: 'string' }
-            },
-            500: {
-                error: { type: 'string' },
-                message: { type: 'string' }
-            }
-        }
-    }
+const ProductDelete = {
+    params: Type.Object({
+        id: Type.Number()
+    }),
 };
 export const productRoute = (server, options, done) => {
     const productRepo = SourceData.getRepository(Product);
     const categoryRepo = SourceData.getRepository(Category);
-    server.post('/products', productAdd, async (req, res) => {
-        try {
-            const { sku, name, description, price, categoryId } = req.body;
-            const category = await categoryRepo.findOneBy({ id: categoryId });
+    server.post('/products', { schema: ProductAdd }, async (req, res) => {
+        const { sku, name, description, price, categoryId } = req.body;
+        return await SourceData.transaction(async (manager) => {
+            const category = await manager.findOneBy(Category, { id: categoryId });
             if (!category) {
-                res.status(404).send({ error: 'Category not found' });
+                throw Object.assign(new Error('Category not found'), { statusCode: 404 });
             }
-            else {
-                const newPro = productRepo.create({ sku, name, description, price, category });
-                const saved = await productRepo.save(newPro);
-                res.status(201).send(saved);
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message, message: 'Internet server error' });
-        }
+            const newPro = manager.create(Product, { sku, name, description: description, price, category });
+            const saved = await manager.save(Product, newPro);
+            res.status(201).send(saved);
+        });
     });
-    server.get('/products/:id', singleProoduct, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const product = await productRepo.findOne({ where: { id: id } });
+    server.get('/products/:id', { schema: ProductSingle }, async (req, res) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {
+            const product = await manager.findOne(Product, { where: { id: id } });
             if (!product) {
-                res.status(404).send({ error: 'Not found', message: 'Product not found' });
+                throw Object.assign(new Error('Product not found'), { statusCode: 404 });
             }
-            else {
-                res.status(200).send(product);
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message, message: 'Internet server error!' });
-        }
+            res.status(200).send(product);
+        });
     });
     server.get('/products', async (req, res) => {
-        try {
-            const { page = 1, limit = 20, q, categoryId, minPrice, maxPrice, sort } = req.query;
-            const fil = productRepo.createQueryBuilder("product").leftJoinAndSelect('product.category', 'category');
+        const { page = 1, limit = 20, q, categoryId, minPrice, maxPrice, sort } = req.query;
+        return await SourceData.transaction(async (manager) => {
+            const fil = manager.createQueryBuilder(Product, "product").leftJoinAndSelect('product.category', 'category');
             if (q) {
                 fil.andWhere('product.name LIKE :q OR product.sku LIKE :q', { q: `%${q}%` });
             }
@@ -198,56 +94,37 @@ export const productRoute = (server, options, done) => {
             fil.skip((page - 1) * limit);
             fil.take(limit);
             const results = await fil.getMany();
-            if (results.length === 0) {
-                res.status(404).send({ error: 'Not found', message: 'Product not found' });
-            }
-            else {
-                res.status(200).send(results);
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message, message: 'Internet server error' });
-        }
+            res.status(200).send(results);
+        });
     });
-    server.put('/products/:id', productUpdate, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const updatePro = req.body;
-            const category = await categoryRepo.findOneBy({ id: updatePro.categoryId });
+    server.put('/products/:id', { schema: ProductUpdate }, async (req, res) => {
+        const id = req.params.id;
+        const { sku, name, description, price, categoryId } = req.body;
+        const updatePro = { sku, name, description: description || '', price, categoryId };
+        return await SourceData.transaction(async (manager) => {
+            const category = await manager.findOneBy(Category, { id: categoryId });
             if (!category) {
-                res.status(404).send({ error: 'Not found', message: 'Category not found' });
+                throw Object.assign(new Error("Category not found"), { statusCode: 404 });
             }
-            else {
-                const pro = await productRepo.findOneBy({ id });
-                if (!pro) {
-                    res.status(404).send({ error: 'Not found', message: 'Product not found' });
-                }
-                else {
-                    productRepo.merge(pro, updatePro);
-                    const saved = await productRepo.save(pro);
-                    res.status(200).send(saved);
-                }
-            }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message, message: 'Internet server error' });
-        }
-    });
-    server.delete('/products/:id', deleteProduct, async (req, res) => {
-        try {
-            const id = req.params.id;
-            const pro = await productRepo.findOneBy({ id });
+            const pro = await manager.findOneBy(Product, { id });
             if (!pro) {
-                res.status(404).send({ error: 'Not found', message: 'Product not found' });
+                throw Object.assign(new Error("Prodcut not found"), { statusCode: 404 });
             }
-            else {
-                await productRepo.remove(pro);
-                res.status(200).send({ message: 'Product has been removed!' });
+            manager.merge(Product, pro, updatePro);
+            const saved = await manager.save(Product, pro);
+            res.status(200).send(saved);
+        });
+    });
+    server.delete('/products/:id', { schema: ProductDelete }, async (req, res) => {
+        const id = req.params.id;
+        return await SourceData.transaction(async (manager) => {
+            const pro = await manager.findOneBy(Product, { id });
+            if (!pro) {
+                throw Object.assign(new Error('Product not found'));
             }
-        }
-        catch (err) {
-            res.status(500).send({ error: err.message, message: 'Internet server error' });
-        }
+            await manager.remove(Product, pro);
+            res.status(200).send({ message: 'Product has been removed!' });
+        });
     });
     done();
 };
