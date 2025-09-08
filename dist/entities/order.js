@@ -30,7 +30,7 @@ __decorate([
     __metadata("design:type", String)
 ], Order.prototype, "status", void 0);
 __decorate([
-    OneToMany(() => OrderItem, (item) => item.order),
+    OneToMany(() => OrderItem, (item) => item.order, { onDelete: "CASCADE", cascade: true }),
     __metadata("design:type", Array)
 ], Order.prototype, "items", void 0);
 __decorate([
@@ -73,7 +73,7 @@ __decorate([
     __metadata("design:type", Number)
 ], OrderItem.prototype, "unitPrice", void 0);
 __decorate([
-    ManyToOne(() => Order, (order) => order.items),
+    ManyToOne(() => Order, (order) => order.items, { onDelete: "CASCADE" }),
     __metadata("design:type", Order)
 ], OrderItem.prototype, "order", void 0);
 OrderItem = __decorate([
