@@ -64,7 +64,7 @@ const DeleteUser = {
 
 
 export const userRoutes = (server:FastifyInstance, options:any, done:()=>void)=> {
-    server.get('/', (req:any,res:any)=> {
+    server.get('/', (req:FastifyRequest,res:FastifyReply)=> {
         res.send('welcome!')
     })
 
